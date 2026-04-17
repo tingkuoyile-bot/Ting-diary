@@ -1,0 +1,1672 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="身體日記">
+<title>身體日記</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --blue:#4776E6;--purple:#8E54E9;
+  --grad:linear-gradient(135deg,#4776E6,#8E54E9);
+  --bg:#F0F2F8;--card:#fff;--text:#1A1A2E;--sub:#6B7280;
+  --border:#E5E7EB;--tab-h:64px;--safe:env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  background:var(--bg);color:var(--text);max-width:480px;margin:0 auto;
+  display:flex;flex-direction:column;position:relative}
+
+/* ── Header ── */
+.hdr{background:var(--grad);padding:52px 20px 18px;flex-shrink:0;position:relative}
+.hdr-date{color:rgba(255,255,255,.7);font-size:13px;margin-bottom:2px}
+.hdr-day{color:#fff;font-size:30px;font-weight:700;letter-spacing:-0.5px}
+.hdr-count{color:rgba(255,255,255,.85);font-size:13px;margin-top:2px}
+.today-badge{position:absolute;top:52px;right:20px;background:rgba(255,255,255,.25);
+  color:#fff;font-size:12px;padding:3px 10px;border-radius:20px;border:1px solid rgba(255,255,255,.4)}
+.weather-bar{display:flex;align-items:center;gap:6px;margin-top:10px;
+  background:rgba(255,255,255,.18);border-radius:20px;padding:6px 12px;
+  font-size:12px;color:#fff;width:fit-content}
+
+/* ── Tabs ── */
+.tab-bar{display:flex;background:#fff;border-top:1px solid var(--border);
+  padding-bottom:var(--safe);flex-shrink:0;z-index:100}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:8px 0;cursor:pointer;font-size:11px;color:var(--sub);gap:3px;
+  transition:color .2s;min-height:var(--tab-h)}
+.tab.active{color:var(--blue)}
+.tab svg{width:22px;height:22px}
+
+/* ── Pages ── */
+.pages{flex:1;overflow:hidden;position:relative}
+.page{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  display:none;flex-direction:column;padding-bottom:20px}
+.page.active{display:flex}
+
+/* ── Cards ── */
+.card{background:var(--card);border-radius:16px;padding:16px;margin:12px 16px 0;
+  box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.card-title{font-size:13px;font-weight:600;color:var(--sub);margin-bottom:10px;
+  display:flex;align-items:center;gap:6px}
+
+/* ── Record Page ── */
+.entry-list{padding:0 16px}
+.entry-card{background:var(--card);border-radius:14px;padding:14px;margin-top:10px;
+  box-shadow:0 1px 3px rgba(0,0,0,.05);position:relative}
+.entry-topic{font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px}
+.entry-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.tag{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500}
+.tag-body{background:#E8F1FD;color:#2563EB}
+.tag-sym{background:#FDE8F0;color:#DB2777}
+.tag-trig{background:#FEF3E2;color:#D97706}
+.tag-rel{background:#E8F8E8;color:#16A34A}
+.tag-sev-輕微{background:#E8F8E8;color:#16A34A}
+.tag-sev-中等{background:#FFFBEB;color:#D97706}
+.tag-sev-嚴重{background:#FEE2E2;color:#DC2626}
+.tag-time{background:#EEF2FF;color:#4F46E5}
+.tag-food{background:#FFF7ED;color:#EA580C}
+.tag-emo{background:#F5F3FF;color:#7C3AED}
+.entry-time{font-size:11px;color:var(--sub);margin-top:4px}
+.entry-weather{font-size:11px;color:var(--sub);margin-top:2px}
+.entry-text-raw{font-size:12px;color:#888;margin-top:6px;line-height:1.5;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-btns{position:absolute;top:10px;right:10px;display:flex;gap:5px;z-index:2}
+.del-btn{background:#FEE2E2;color:#DC2626;border:none;border-radius:8px;
+  width:28px;height:28px;font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center}
+.edit-btn{background:#EEF2FF;color:#4776E6;border:none;border-radius:8px;
+  width:28px;height:28px;font-size:13px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center}
+
+/* ── Input Area ── */
+/* record 頁 scroll/fixed 佈局 */
+#page-record{overflow-y:hidden}
+.record-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+
+.input-area{margin:12px 16px 0;background:var(--card);border-radius:16px;
+  overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.cat-row{display:flex;align-items:flex-start;gap:0;
+  border-bottom:1px solid var(--border)}
+.cat-row:last-of-type{border-bottom:none}
+.cat-label{font-size:13px;font-weight:500;color:var(--sub);
+  white-space:nowrap;padding:11px 10px 11px 14px;width:86px;flex-shrink:0;
+  display:flex;align-items:center;gap:4px}
+.cat-input{flex:1;border:none;outline:none;font-size:14px;font-family:inherit;
+  background:transparent;color:var(--text);padding:11px 14px 11px 0;
+  line-height:1.5}
+.cat-input::placeholder{color:#C4C9D4}
+.cat-notes{flex:1;border:none;outline:none;font-size:14px;font-family:inherit;
+  background:transparent;color:var(--text);padding:11px 14px 11px 0;
+  line-height:1.5;resize:none;min-height:52px}
+.cat-notes::placeholder{color:#C4C9D4}
+/* 建議詞 */
+.cat-suggestions{display:flex;flex-wrap:wrap;gap:4px;padding:3px 0 5px 86px;
+  background:var(--card);border-bottom:1px solid var(--border);min-height:0}
+.cat-suggestions:empty{display:none}
+.sug-chip{font-size:12px;padding:2px 10px;background:#EEF2FF;color:#4776E6;
+  border-radius:12px;border:none;cursor:pointer;font-family:inherit;white-space:nowrap}
+.sug-chip:active{background:#4776E6;color:#fff}
+/* 編輯模式 */
+.edit-mode-bar{background:#FEF3C7;color:#92400E;font-size:13px;font-weight:600;
+  padding:8px 16px;display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid #FDE68A}
+.edit-mode-bar button{font-size:12px;padding:3px 10px;border-radius:8px;
+  background:#F59E0B;color:#fff;border:none;cursor:pointer;font-weight:600}
+.input-actions{display:flex;justify-content:space-between;align-items:center;
+  padding:12px 16px;border-top:1px solid var(--border);
+  background:var(--bg);flex-shrink:0}
+.btn-clear{color:var(--sub);font-size:14px;background:none;border:none;cursor:pointer;padding:0}
+.btn-record{background:var(--grad);color:#fff;border:none;border-radius:24px;
+  padding:10px 24px;font-size:15px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;gap:6px;box-shadow:0 3px 12px rgba(71,118,230,.4)}
+.btn-record:active{transform:scale(.97)}
+
+/* ── Stats Page ── */
+.stat-header{font-size:17px;font-weight:700;padding:16px 16px 0}
+.period-btns{display:flex;gap:8px;padding:10px 16px 0}
+.period-btn{padding:5px 14px;border-radius:20px;font-size:13px;border:1.5px solid var(--border);
+  background:#fff;cursor:pointer;color:var(--sub);transition:.2s}
+.period-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.stat-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.stat-label{font-size:13px;color:var(--text);min-width:80px}
+.stat-bar-wrap{flex:1;background:#F3F4F6;border-radius:6px;height:8px;overflow:hidden}
+.stat-bar{height:100%;border-radius:6px;background:var(--grad);transition:width .6s}
+.stat-count{font-size:12px;color:var(--sub);min-width:30px;text-align:right}
+.chart-wrap{height:200px;padding:10px 0}
+
+/* ── Trend Page (Calendar) ── */
+.cal-nav{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 0}
+.cal-nav-btn{background:none;border:none;font-size:20px;cursor:pointer;color:var(--blue);
+  width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.cal-nav-btn:active{background:var(--bg)}
+.cal-month{font-size:16px;font-weight:700}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:8px 16px}
+.cal-dow{text-align:center;font-size:11px;color:var(--sub);padding:4px 0;font-weight:600}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;border-radius:10px;cursor:pointer;font-size:13px;gap:2px}
+.cal-day.today{background:var(--grad);color:#fff;font-weight:700}
+.cal-day.has-entry{background:#EEF2FF}
+.cal-day.selected{outline:2px solid var(--blue)}
+.cal-day .dot{width:5px;height:5px;border-radius:50%;background:var(--purple)}
+.cal-day.today .dot{background:rgba(255,255,255,.8)}
+.cal-entries{padding:0 16px}
+.cal-entry-date{font-size:13px;font-weight:600;color:var(--blue);margin:12px 0 6px}
+
+/* ── Assistant Page ── */
+.insight-card{background:var(--card);border-radius:16px;margin:10px 16px 0;
+  overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.insight-head{padding:12px 16px;font-weight:700;font-size:14px;
+  display:flex;align-items:center;gap:8px}
+.insight-body{padding:0 16px 14px;font-size:13px;color:var(--sub);line-height:1.7}
+.insight-body li{margin-bottom:4px}
+.insight-blue{border-left:4px solid var(--blue)}
+.insight-green{border-left:4px solid #16A34A}
+.insight-orange{border-left:4px solid #D97706}
+.insight-red{border-left:4px solid #DC2626}
+
+/* ── Settings Page ── */
+.setting-group{margin:12px 16px 0}
+.setting-group-title{font-size:12px;color:var(--sub);font-weight:600;
+  text-transform:uppercase;letter-spacing:.5px;padding:0 4px 6px}
+.setting-item{background:var(--card);border-radius:12px;overflow:hidden;
+  box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.setting-row{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer}
+.setting-row:last-child{border-bottom:none}
+.setting-row:active{background:#F9FAFB}
+.setting-label{font-size:15px;display:flex;align-items:center;gap:10px}
+.setting-arrow{color:#C0C4CC;font-size:14px}
+.setting-badge{background:var(--blue);color:#fff;font-size:11px;
+  padding:2px 8px;border-radius:12px}
+
+/* ── Empty State ── */
+.empty{text-align:center;padding:48px 32px;color:var(--sub)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+.empty-text{font-size:15px}
+.empty-hint{font-size:13px;margin-top:6px;color:#9CA3AF}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:calc(var(--tab-h) + var(--safe) + 16px);left:50%;
+  transform:translateX(-50%) translateY(20px);background:#1A1A2E;color:#fff;
+  padding:10px 20px;border-radius:24px;font-size:14px;
+  opacity:0;transition:.3s;z-index:999;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── Date picker row ── */
+.date-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;
+  padding-bottom:10px;border-bottom:1px solid var(--border)}
+.date-row-label{font-size:12px;color:var(--sub);white-space:nowrap}
+.date-picker{flex:1;border:1.5px solid var(--border);border-radius:10px;
+  padding:6px 10px;font-size:13px;color:var(--text);background:#F9FAFB;
+  font-family:inherit;outline:none}
+.date-picker:focus{border-color:var(--blue);background:#fff}
+.date-today-btn{background:var(--blue);color:#fff;border:none;border-radius:8px;
+  padding:6px 10px;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:600}
+.date-today-btn:active{opacity:.8}
+.backdate-banner{background:#FEF3C7;border:1px solid #FCD34D;border-radius:10px;
+  padding:8px 12px;margin:8px 16px 0;font-size:12px;color:#92400E;
+  display:flex;align-items:center;gap:6px}
+
+/* ── New category tags ── */
+.tag-sleep{background:#E0F2FE;color:#0284C7}
+.tag-exercise{background:#DCFCE7;color:#15803D}
+.tag-med{background:#F3E8FF;color:#7E22CE}
+.tag-menstrual{background:#FFE4E6;color:#BE123C}
+.tag-bowel{background:#FEF9C3;color:#A16207}
+
+/* ── Export button & modal ── */
+.btn-export{width:100%;background:linear-gradient(135deg,#0EA5E9,#6366F1);color:#fff;
+  border:none;border-radius:14px;padding:14px;font-size:16px;font-weight:700;
+  cursor:pointer;box-shadow:0 4px 14px rgba(99,102,241,.35);
+  display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px}
+.btn-export:active{transform:scale(.97)}
+.export-period{display:flex;gap:8px;margin-bottom:4px}
+.export-period-btn{flex:1;padding:7px 0;border-radius:10px;font-size:13px;
+  border:1.5px solid var(--border);background:#fff;cursor:pointer;color:var(--sub)}
+.export-period-btn.active{background:#6366F1;color:#fff;border-color:#6366F1}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;
+  display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:.25s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-box{background:#fff;border-radius:24px 24px 0 0;width:100%;max-height:80vh;
+  display:flex;flex-direction:column;transform:translateY(100%);transition:.3s}
+.modal-overlay.open .modal-box{transform:translateY(0)}
+.modal-head{padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);flex-shrink:0}
+.modal-title{font-size:16px;font-weight:700}
+.modal-close{background:none;border:none;font-size:22px;color:var(--sub);cursor:pointer;
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center}
+.modal-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px}
+.export-textarea{width:100%;height:320px;border:1.5px solid var(--border);border-radius:12px;
+  padding:12px;font-size:12px;line-height:1.7;font-family:inherit;resize:none;
+  outline:none;color:var(--text);background:#F9FAFB}
+.btn-copy{width:100%;background:var(--grad);color:#fff;border:none;border-radius:12px;
+  padding:13px;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px}
+.btn-copy:active{transform:scale(.97)}
+.copy-hint{font-size:12px;color:var(--sub);text-align:center;margin-top:8px;line-height:1.5}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{display:none}
+
+/* ── Section title ── */
+.section-title{font-size:13px;font-weight:700;color:var(--sub);padding:14px 16px 0;
+  display:flex;align-items:center;gap:6px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+</style>
+</head>
+<body>
+
+<!-- Header (dynamic) -->
+<div class="hdr" id="hdr">
+  <div class="today-badge">今天</div>
+  <div class="hdr-date" id="hdr-date"></div>
+  <div class="hdr-day" id="hdr-day"></div>
+  <div class="hdr-count" id="hdr-count"></div>
+  <div class="weather-bar" id="weather-bar">⏳ 取得天氣中…</div>
+</div>
+
+<!-- Pages -->
+<div class="pages">
+
+  <!-- 記錄 -->
+  <div class="page active" id="page-record">
+    <div class="record-scroll">
+      <div class="section-title" id="today-section">今日記錄</div>
+      <div class="entry-list" id="entry-list"></div>
+
+      <!-- 編輯模式提示條 -->
+      <div id="edit-mode-bar" class="edit-mode-bar" style="display:none">
+        ✏️ 編輯模式
+        <button type="button" onclick="cancelEdit()">取消</button>
+      </div>
+      <div class="input-area">
+        <div class="date-row" style="padding:10px 14px;margin:0">
+          <span class="date-row-label">📅 記錄日期</span>
+          <input type="date" id="record-date" class="date-picker" onchange="onDateChange()">
+          <button type="button" class="date-today-btn" onclick="resetToToday()">今天</button>
+        </div>
+        <div class="cat-row">
+          <div class="cat-label">🩺 症狀</div>
+          <input type="text" class="cat-input" id="inp-symptoms" list="dl-symptoms" placeholder="頭痛、疲勞、頭暈…" onfocus="showSuggestions('symptoms','inp-symptoms')">
+        </div>
+        <div class="cat-suggestions" id="sug-symptoms"></div>
+        <div class="cat-row">
+          <div class="cat-label">😴 睡眠</div>
+          <input type="text" class="cat-input" id="inp-sleep" list="dl-sleep" placeholder="幾點睡、睡飽、失眠…" onfocus="showSuggestions('sleep','inp-sleep')">
+        </div>
+        <div class="cat-suggestions" id="sug-sleep"></div>
+        <div class="cat-row">
+          <div class="cat-label">🏃 運動</div>
+          <input type="text" class="cat-input" id="inp-exercise" list="dl-exercise" placeholder="跑步30分、瑜珈、無…" onfocus="showSuggestions('exercise','inp-exercise')">
+        </div>
+        <div class="cat-suggestions" id="sug-exercise"></div>
+        <div class="cat-row">
+          <div class="cat-label">🍽️ 飲食</div>
+          <input type="text" class="cat-input" id="inp-food" list="dl-food" placeholder="咖啡、飲料、甜食…" onfocus="showSuggestions('food','inp-food')">
+        </div>
+        <div class="cat-suggestions" id="sug-food"></div>
+        <div class="cat-row">
+          <div class="cat-label">💊 藥物</div>
+          <input type="text" class="cat-input" id="inp-medication" list="dl-medication" placeholder="vitC、gaba、止痛藥…" onfocus="showSuggestions('medication','inp-medication')">
+        </div>
+        <div class="cat-suggestions" id="sug-medication"></div>
+        <div class="cat-row">
+          <div class="cat-label">🩸 月經</div>
+          <input type="text" class="cat-input" id="inp-menstrual" list="dl-menstrual" placeholder="量多、血塊、經痛…" onfocus="showSuggestions('menstrual','inp-menstrual')">
+        </div>
+        <div class="cat-suggestions" id="sug-menstrual"></div>
+        <div class="cat-row">
+          <div class="cat-label">🚽 排便</div>
+          <input type="text" class="cat-input" id="inp-bowel" list="dl-bowel" placeholder="正常、便秘、腹瀉…" onfocus="showSuggestions('bowel','inp-bowel')">
+        </div>
+        <div class="cat-suggestions" id="sug-bowel"></div>
+        <div class="cat-row" style="border-bottom:none">
+          <div class="cat-label">📝 備註</div>
+          <textarea class="cat-notes" id="inp-notes" placeholder="其他想記錄的…"></textarea>
+        </div>
+        <!-- datalists -->
+        <datalist id="dl-symptoms"></datalist>
+        <datalist id="dl-sleep"></datalist>
+        <datalist id="dl-exercise"></datalist>
+        <datalist id="dl-food"></datalist>
+        <datalist id="dl-medication"></datalist>
+        <datalist id="dl-menstrual"></datalist>
+        <datalist id="dl-bowel"></datalist>
+      </div>
+    </div>
+    <!-- 清空/記錄按鈕固定在底部 -->
+    <div class="input-actions">
+      <button type="button" class="btn-clear" onclick="clearInput()">清空</button>
+      <button type="button" class="btn-record" onclick="saveEntry()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+          <path d="M12 5v14M5 12l7 7 7-7"/>
+        </svg>
+        <span id="btn-record-text">記錄</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 統計 -->
+  <div class="page" id="page-stats">
+    <div class="stat-header">健康統計</div>
+    <div class="period-btns">
+      <button class="period-btn active" onclick="setPeriod(7,this)">7 天</button>
+      <button class="period-btn" onclick="setPeriod(30,this)">30 天</button>
+      <button class="period-btn" onclick="setPeriod(0,this)">全部</button>
+    </div>
+    <div id="stats-content"></div>
+  </div>
+
+  <!-- 趨勢 -->
+  <div class="page" id="page-trend">
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+      <div class="cal-month" id="cal-month-label"></div>
+      <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="section-title">選定日期的記錄</div>
+    <div class="cal-entries" id="cal-entries"></div>
+  </div>
+
+  <!-- 助手 -->
+  <div class="page" id="page-assist">
+    <div class="stat-header">健康助手</div>
+
+    <!-- 匯出給 AI 分析 -->
+    <div style="padding:12px 16px 0">
+      <div class="export-period" id="export-period-btns">
+        <button class="export-period-btn active" onclick="setExportPeriod(7,this)">7 天</button>
+        <button class="export-period-btn" onclick="setExportPeriod(30,this)">30 天</button>
+        <button class="export-period-btn" onclick="setExportPeriod(0,this)">全部</button>
+      </div>
+      <button class="btn-export" onclick="showExportModal()">
+        📋 產生 AI 分析訊息（可貼到 ChatGPT）
+      </button>
+    </div>
+
+    <div id="assist-content"></div>
+  </div>
+
+  <!-- 設定 -->
+  <div class="page" id="page-settings">
+    <div class="stat-header">設定</div>
+    <div class="setting-group">
+      <div class="setting-group-title">資料管理</div>
+      <div class="setting-item">
+        <div class="setting-row" onclick="exportTXT()">
+          <div class="setting-label">📤 匯出純文字（給 AI 分析）</div>
+          <div class="setting-arrow">›</div>
+        </div>
+        <div class="setting-row" onclick="exportJSON()">
+          <div class="setting-label">💾 備份資料 (JSON)</div>
+          <div class="setting-arrow">›</div>
+        </div>
+        <div class="setting-row" onclick="importJSON()">
+          <div class="setting-label">📥 還原備份</div>
+          <div class="setting-arrow">›</div>
+        </div>
+      </div>
+    </div>
+    <div class="setting-group">
+      <div class="setting-group-title">關於</div>
+      <div class="setting-item">
+        <div class="setting-row">
+          <div class="setting-label">📊 目前記錄筆數</div>
+          <div class="setting-badge" id="total-count">0</div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-label">🗓️ 開始記錄日期</div>
+          <div class="setting-arrow" id="start-date">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="setting-group">
+      <div class="setting-group-title">危險區域</div>
+      <div class="setting-item">
+        <div class="setting-row" onclick="clearAllData()" style="color:#DC2626">
+          <div class="setting-label" style="color:#DC2626">🗑️ 清除所有資料</div>
+          <div class="setting-arrow">›</div>
+        </div>
+      </div>
+    </div>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
+  </div>
+</div>
+
+<!-- Tab Bar -->
+<div class="tab-bar">
+  <div class="tab active" onclick="switchTab('record',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    </svg>
+    記錄
+  </div>
+  <div class="tab" onclick="switchTab('stats',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+      <line x1="6" y1="20" x2="6" y2="14"/>
+    </svg>
+    統計
+  </div>
+  <div class="tab" onclick="switchTab('trend',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="4" width="18" height="18" rx="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+    趨勢
+  </div>
+  <div class="tab" onclick="switchTab('assist',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+      <line x1="12" y1="17" x2="12.01" y2="17" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+    助手
+  </div>
+  <div class="tab" onclick="switchTab('settings',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+    設定
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 匯出 Modal -->
+<div class="modal-overlay" id="export-modal" onclick="closeExportModal(event)">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title">📋 複製訊息給 AI 分析</div>
+      <button class="modal-close" onclick="closeExportModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <textarea class="export-textarea" id="export-text" readonly></textarea>
+      <button class="btn-copy" onclick="copyExportText()">📋 全選複製</button>
+      <div class="copy-hint">複製後，貼到 ChatGPT 或任何 AI 助手，請它幫你分析健康規律</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// KEYWORD DETECTION ENGINE
+// ════════════════════════════════════════════════════════════════
+const KW = {
+  bodyParts: {
+    '頭部':['頭','頭部','頭痛','偏頭痛','頭悶','頭脹','頭暈','頭疼'],
+    '頸部':['脖子','頸部','頸','脖','頸椎'],
+    '肩膀':['肩膀','肩部','肩頸','肩'],
+    '背部':['背','背部','上背','背痛','背酸'],
+    '腰部':['腰','腰部','腰痛','腰酸','下腰'],
+    '胸部':['胸','胸口','心口','胸悶','胸痛'],
+    '腹部':['肚子','腹部','腹','胃','肚'],
+    '眼睛':['眼睛','眼','眼皮','眼酸','眼花'],
+    '喉嚨':['喉嚨','喉','喉嚨痛','喉嚨不舒服'],
+    '手部':['手','手腕','手指','手臂','手肘'],
+    '腿部':['腿','腳','膝蓋','小腿','大腿'],
+    '全身':['全身','渾身','全體','全身無力'],
+  },
+  symptoms: {
+    '頭痛':['頭痛','頭疼','頭悶','偏頭痛','頭脹','頭不舒服','頭在痛','頭很痛'],
+    '頭暈':['頭暈','暈眩','眩暈','天旋地轉','頭昏','頭昏脹','昏脹','頭昏沉','頭重','頭沉','昏昏沉沉'],
+    '噁心':['噁心','想吐','反胃','胃部不適'],
+    '疲勞':['疲勞','疲憊','疲倦','疲累','很累','好累','好疲倦','好疲累','累死','倦怠','沒力','沒精神','提不起勁','渾身無力','全身無力'],
+    '失眠':['失眠','睡不著','睡眠差','睡不好','難以入睡'],
+    '腰背痠':['腰酸背痛','腰痛','背痛','背酸','腰酸'],
+    '肩頸痠':['肩膀痠','頸部痠','肩頸痠','脖子痠','肩頸不舒服'],
+    '眼睛疲勞':['眼睛酸','眼睛累','眼酸','眼睛疲勞','眼花'],
+    '消化問題':['消化','脹氣','消化不良','胃脹','胃不舒服','消化差'],
+    '焦慮':['焦慮','緊張','不安','慌張','心跳加速'],
+    '情緒低落':['情緒低落','心情差','難過','沮喪','心情不好','心情鬱悶'],
+    '過敏':['過敏','打噴嚏','流鼻水','鼻塞','鼻子不舒服','癢'],
+    '發燒':['發燒','發熱','體溫','燒','退燒'],
+    '咳嗽':['咳嗽','咳','咳痰'],
+    '生理痛':['生理痛','經痛','月經痛','大姨媽痛'],
+  },
+  severity: {
+    '輕微':['輕微','有點','稍微','一點','還好','不太嚴重','輕輕的','小小的'],
+    '中等':['中等','蠻不舒服','有些','還算','普通','不太好','有點嚴重'],
+    '嚴重':['嚴重','很痛','非常','超級','劇烈','受不了','很不舒服','超痛','很嚴重','極度'],
+  },
+  triggers: {
+    '起床':['起床','醒來','剛起床','早上起'],
+    '睡眠不足':['睡不夠','睡太少','睡眠不足','沒睡好','睡很少'],
+    '壓力':['壓力','緊張','焦慮','工作壓力','很忙','壓力大'],
+    '天氣變化':['天氣','下雨','氣壓','悶熱','颱風','天氣變'],
+    '久坐':['久坐','坐太久','長時間坐','坐著工作'],
+    '3C使用':['手機','電腦','螢幕','盯著螢幕','看手機','看電腦'],
+    '咖啡因':['咖啡','奶茶','含咖啡因','喝了咖啡'],
+    '跳餐':['跳餐','沒吃','空腹','忘記吃','沒有吃飯','沒吃飯'],
+    '辛辣食物':['辣','辛辣','麻辣','吃辣'],
+    '月經':['月經','生理期','經期','大姨媽'],
+    '運動過度':['運動太激烈','運動後','訓練後','健身後'],
+    '情緒波動':['情緒激動','吵架','爭吵','哭','生氣'],
+  },
+  relief: {
+    '睡覺/休息':['睡覺','睡了','午睡','休息','躺著','躺下','好好睡'],
+    '吃藥':['吃藥','普拿疼','止痛藥','服藥','吃了藥'],
+    '按摩':['按摩','推拿','揉','自己揉'],
+    '喝水':['喝水','補充水分','多喝水'],
+    '熱敷':['熱敷','熱水袋','敷熱'],
+    '冷敷':['冷敷','冰敷','冰袋'],
+    '伸展':['伸展','拉筋','拉伸','活動筋骨'],
+    '散步':['散步','走走','去走走','輕鬆走路'],
+    '呼吸放鬆':['深呼吸','呼吸','放鬆','冥想'],
+  },
+  timeOfDay: {
+    '早晨':['早上','早晨','清晨','剛起床','起床後','早上起來'],
+    '上午':['上午','早上10','早上11'],
+    '中午':['中午','午餐','午間','吃午飯'],
+    '下午':['下午','午後','下午時分'],
+    '傍晚':['傍晚','黃昏','接近晚上'],
+    '晚上':['晚上','夜晚','夜間','睡前','晚餐後'],
+    '半夜':['半夜','凌晨','深夜','夜深'],
+  },
+  food: {
+    '咖啡':['咖啡','黑咖啡','拿鐵','美式'],
+    '飲料':['飲料','手搖飲','手搖','飲品','含糖飲料','罐裝飲料'],
+    '茶類':['茶','綠茶','紅茶','烏龍','奶茶','珍奶','抹茶'],
+    '酒精':['酒','啤酒','紅酒','白酒','喝酒'],
+    '巧克力':['巧克力','可可'],
+    '甜食':['甜食','糖','甜點','蛋糕','餅乾','冰淇淋','甜的'],
+    '辛辣':['辣','辛辣','麻辣','火鍋','辣椒'],
+    '油炸':['炸物','油炸','油膩','炸雞','薯條'],
+    '生冷食物':['生冷','冰的','冰水','冷飲','生食'],
+  },
+  emotions: {
+    '壓力大':['壓力大','很有壓力','壓力山大','承受壓力'],
+    '焦慮緊張':['焦慮','擔心','緊張','不安'],
+    '疲憊':['疲憊','精疲力竭','身心俱疲'],
+    '開心':['開心','高興','快樂','心情好','很開心','愉快'],
+    '難過憂鬱':['難過','心情差','不開心','沮喪','憂鬱'],
+    '憤怒':['生氣','憤怒','火大','很氣'],
+    '平靜':['平靜','還好','普通','正常'],
+  },
+
+  // ── 新增類別 ──
+  sleep: {
+    '睡眠不足':['太晚睡','晚睡','睡很晚','沒睡夠','睡不夠','睡太少','睡眠不足','睡很少','沒睡好','睡很短'],
+    '失眠':['失眠','睡不著','難以入睡','睡很難','輾轉難眠'],
+    '淺眠多夢':['淺眠','多夢','做夢','夢到','睡不深'],
+    '睡眠品質差':['睡眠品質差','睡眠品質不好','睡得不好','睡很差'],
+    '睡眠充足':['睡很好','睡很飽','睡得好','睡飽','睡眠品質好','睡足'],
+    '早起':['早起','很早起','起很早','起太早'],
+    '賴床':['賴床','睡太久','睡過頭','睡懶覺'],
+    '嗜睡':['嗜睡','一直想睡','很想睡','睡意很重','打瞌睡'],
+  },
+  exercise: {
+    '跑步':['跑步','慢跑','超慢跑','快跑','晨跑','夜跑','路跑'],
+    '走路':['走路','散步','健走','快走','走很多路'],
+    '游泳':['游泳','游泳池','水中運動'],
+    '瑜珈':['瑜珈','瑜伽','yoga','pilates','皮拉提斯'],
+    '重訓':['重訓','健身房','重量訓練','舉重','深蹲','硬舉','肌力訓練'],
+    '騎車':['騎車','騎腳踏車','單車','自行車','騎自行車'],
+    '球類運動':['打球','羽球','羽毛球','籃球','排球','網球','桌球','足球'],
+    '有氧舞蹈':['有氧','跳舞','舞蹈','zumba'],
+    '伸展':['拉筋','伸展','拉伸','活動筋骨'],
+    '爬樓梯':['爬樓梯','走樓梯','爬階梯','爬梯'],
+    '爬山':['爬山','登山','健行','爬坡'],
+    '沒運動':['沒運動','沒有運動','沒動','未運動','懶得運動','今天沒動'],
+  },
+  medication: {
+    // 一般藥物
+    '止痛藥':['止痛藥','普拿疼','阿斯匹靈','布洛芬','頭痛藥','退燒藥'],
+    '感冒藥':['感冒藥','流感藥','鼻塞藥','咳嗽藥'],
+    '胃藥':['胃藥','腸胃藥','制酸劑','胃乳','消化酵素'],
+    '消炎藥':['消炎藥','抗生素','抗發炎'],
+    '安眠藥':['安眠藥','助眠藥','鎮定劑','安定'],
+    '避孕藥':['避孕藥','事後藥'],
+    // 保健食品（中文）
+    '保健食品':['保健食品','保健品','營養補充','補充品','健康食品'],
+    '維他命':['維他命','維生素','綜合維他命','綜合維生素','複合維他命'],
+    '維他命C':['維他命c','維生素c','vc','維c'],
+    '葉黃素':['葉黃素','lutein'],
+    'GABA':['gaba','γ-胺基丁酸'],
+    '魚油':['魚油','深海魚油','omega','omega3'],
+    '葉酸':['葉酸','folic'],
+    '鐵劑':['鐵劑','補鐵','鐵質補充'],
+    '益生菌':['益生菌','乳酸菌','probiotics'],
+    '膠原蛋白':['膠原蛋白','collagen'],
+    '薑黃':['薑黃','curcumin','turmeric'],
+    '鈣片':['鈣片','補鈣','鈣質'],
+    '維他命D':['維他命d','維生素d','vd'],
+    '鋅':['鋅','zinc'],
+    '鎂':['鎂','magnesium'],
+    'B群':['b群','維他命b','b complex','b12'],
+    '白藜蘆醇':['白藜蘆醇','resveratrol'],
+  },
+  menstrual: {
+    '月經來':['月經來','生理期來','來了','月事來','來潮','大姨媽來','生理期到'],
+    '月經未來':['月經沒來','月經還沒來','生理期沒來','還沒來','月經延遲','遲遲沒來'],
+    '量多':['量多','好多血','血量多','流很多','很多血塊','血塊','量很大'],
+    '量少':['量少','血量少','點狀出血','量很少','快結束'],
+    '經痛':['經痛','生理痛','肚子悶','下腹悶','下腹痛','經期腹痛','月經痛'],
+    '排卵期':['排卵','排卵期','排卵痛','中間痛'],
+    '經期結束':['月經結束','生理期結束','結束了','乾淨了'],
+  },
+  bowel: {
+    '便秘':['便秘','沒上廁所','大不出來','排不出來','好幾天沒大','大便很硬','排便困難'],
+    '腹瀉':['拉肚子','腹瀉','軟便','水便','拉稀','腸胃炎','跑廁所跑很多次'],
+    '排便頻繁':['好幾次','一直上廁所','跑廁所','上廁所很多次','頻繁上廁所'],
+    '排不乾淨':['上不乾淨','排不乾淨','大不乾淨','殘便感','感覺沒排乾淨'],
+    '正常排便':['有上廁所','正常排便','排便順暢','今天有大','腸胃正常'],
+  },
+};
+
+function extractKeywords(text) {
+  const result = {
+    bodyParts: [], symptoms: [], triggers: [], relief: [],
+    severity: null, timeOfDay: null, food: [], emotions: [],
+    sleep: [], exercise: [], medication: [], menstrual: [], bowel: [],
+    mainTopic: null
+  };
+  const t = text;
+
+  // Severity (check first to avoid conflicts)
+  for (const [sev, kws] of Object.entries(KW.severity)) {
+    if (kws.some(k => t.includes(k))) { result.severity = sev; break; }
+  }
+  if (!result.severity && text.length > 5) result.severity = '中等';
+
+  // Time of day
+  for (const [time, kws] of Object.entries(KW.timeOfDay)) {
+    if (kws.some(k => t.includes(k))) { result.timeOfDay = time; break; }
+  }
+
+  // Body parts
+  for (const [part, kws] of Object.entries(KW.bodyParts)) {
+    if (kws.some(k => t.includes(k))) result.bodyParts.push(part);
+  }
+
+  // Symptoms (find main topic)
+  const symScores = {};
+  for (const [sym, kws] of Object.entries(KW.symptoms)) {
+    const score = kws.filter(k => t.includes(k)).length;
+    if (score > 0) { result.symptoms.push(sym); symScores[sym] = score; }
+  }
+  if (result.symptoms.length) {
+    result.mainTopic = Object.entries(symScores).sort((a,b)=>b[1]-a[1])[0][0];
+  } else if (result.bodyParts.length) {
+    result.mainTopic = result.bodyParts[0] + '不適';
+  } else if (text.length > 0) {
+    result.mainTopic = '一般記錄';
+  }
+
+  // Triggers
+  for (const [trig, kws] of Object.entries(KW.triggers)) {
+    if (kws.some(k => t.includes(k))) result.triggers.push(trig);
+  }
+
+  // Relief
+  for (const [rel, kws] of Object.entries(KW.relief)) {
+    if (kws.some(k => t.includes(k))) result.relief.push(rel);
+  }
+
+  // Food
+  for (const [food, kws] of Object.entries(KW.food)) {
+    if (kws.some(k => t.includes(k))) result.food.push(food);
+  }
+
+  // Emotions
+  for (const [emo, kws] of Object.entries(KW.emotions)) {
+    if (kws.some(k => t.includes(k))) result.emotions.push(emo);
+  }
+
+  // 新類別：用小寫比對以支援英文縮寫（vitC、gaba、omega 等）
+  const tLower = text.toLowerCase();
+
+  // Sleep
+  for (const [label, kws] of Object.entries(KW.sleep)) {
+    if (kws.some(k => tLower.includes(k.toLowerCase()))) result.sleep.push(label);
+  }
+
+  // Exercise
+  for (const [label, kws] of Object.entries(KW.exercise)) {
+    if (kws.some(k => tLower.includes(k.toLowerCase()))) result.exercise.push(label);
+  }
+
+  // Medication / Supplements
+  for (const [label, kws] of Object.entries(KW.medication)) {
+    if (kws.some(k => tLower.includes(k.toLowerCase()))) result.medication.push(label);
+  }
+
+  // Menstrual
+  for (const [label, kws] of Object.entries(KW.menstrual)) {
+    if (kws.some(k => tLower.includes(k.toLowerCase()))) result.menstrual.push(label);
+  }
+
+  // Bowel
+  for (const [label, kws] of Object.entries(KW.bowel)) {
+    if (kws.some(k => tLower.includes(k.toLowerCase()))) result.bowel.push(label);
+  }
+
+  return result;
+}
+
+// ════════════════════════════════════════════════════════════════
+// DATA LAYER
+// ════════════════════════════════════════════════════════════════
+const STORE_KEY = 'healthDiary_v2';
+
+function getEntries() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveEntries(entries) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(entries));
+}
+
+function addEntry(entry) {
+  const entries = getEntries();
+  entries.unshift(entry);
+  saveEntries(entries);
+}
+
+function deleteEntry(id) {
+  const entries = getEntries().filter(e => e.id !== id);
+  saveEntries(entries);
+}
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function getSelectedRecordDate() {
+  return document.getElementById('record-date')?.value || todayStr();
+}
+
+function onDateChange() {
+  renderRecordPage();
+  const sel = getSelectedRecordDate();
+  const banner = document.getElementById('backdate-banner');
+  if (sel !== todayStr()) {
+    if (!banner) {
+      const b = document.createElement('div');
+      b.id = 'backdate-banner';
+      b.className = 'backdate-banner';
+      b.textContent = `📝 補記模式：正在為 ${sel} 新增記錄`;
+      document.getElementById('page-record').insertBefore(b, document.querySelector('.input-area'));
+    } else {
+      banner.textContent = `📝 補記模式：正在為 ${sel} 新增記錄`;
+    }
+  } else {
+    if (banner) banner.remove();
+  }
+}
+
+function resetToToday() {
+  document.getElementById('record-date').value = todayStr();
+  onDateChange();
+}
+
+function fmtDate(d) {
+  const days = ['日','一','二','三','四','五','六'];
+  return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（週${days[d.getDay()]}）`;
+}
+
+function fmtTime(d) {
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// WEATHER
+// ════════════════════════════════════════════════════════════════
+let weatherCache = null;
+
+const WC_MAP = {
+  0:'☀️ 晴天', 1:'🌤️ 晴時多雲', 2:'⛅ 多雲', 3:'☁️ 陰天',
+  45:'🌫️ 霧', 48:'🌫️ 霧',
+  51:'🌦️ 毛毛雨', 53:'🌦️ 毛毛雨', 55:'🌦️ 毛毛雨',
+  61:'🌧️ 小雨', 63:'🌧️ 中雨', 65:'🌧️ 大雨',
+  71:'❄️ 小雪', 73:'❄️ 中雪', 75:'❄️ 大雪',
+  80:'🌩️ 陣雨', 81:'🌩️ 陣雨', 82:'🌩️ 強陣雨',
+  95:'⛈️ 雷雨', 96:'⛈️ 雷雨', 99:'⛈️ 強雷雨',
+};
+
+async function fetchWeather() {
+  const bar = document.getElementById('weather-bar');
+  if (!navigator.geolocation) {
+    bar.textContent = '⚠️ 裝置不支援定位';
+    return;
+  }
+  bar.textContent = '⏳ 取得天氣中…';
+  bar.style.cursor = 'pointer';
+  bar.onclick = () => fetchWeather();   // 點一下可重試
+  try {
+    const pos = await new Promise((res, rej) =>
+      navigator.geolocation.getCurrentPosition(res, rej, {timeout:8000, maximumAge:300000}));
+    const {latitude:lat, longitude:lon} = pos.coords;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(2)}&longitude=${lon.toFixed(2)}&current=temperature_2m,relative_humidity_2m,surface_pressure,weather_code&timezone=auto`;
+    const r = await fetch(url);
+    const d = await r.json();
+    const c = d.current;
+    weatherCache = {
+      condition: WC_MAP[c.weather_code] || '⛅ 多雲',
+      temp: Math.round(c.temperature_2m),
+      humidity: c.relative_humidity_2m,
+      pressure: Math.round(c.surface_pressure),
+      raw: c.weather_code
+    };
+    bar.textContent = `${weatherCache.condition} · ${weatherCache.temp}° · 濕度${weatherCache.humidity}%`;
+    bar.onclick = null;
+    bar.style.cursor = '';
+  } catch(err) {
+    const msg = err.code === 1 ? '⚠️ 請允許定位權限（點此重試）' : '⚠️ 天氣取得失敗（點此重試）';
+    bar.textContent = msg;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// RENDER HELPERS
+// ════════════════════════════════════════════════════════════════
+function renderTags(extracted) {
+  let html = '';
+  // 只顯示你實際輸入的事實，移除誘因/時段/程度等推導標籤
+  (extracted.symptoms||[]).forEach(s => html += `<span class="tag tag-sym">${s}</span>`);
+  (extracted.sleep||[]).forEach(s => html += `<span class="tag tag-sleep">😴 ${s}</span>`);
+  (extracted.exercise||[]).forEach(e => html += `<span class="tag tag-exercise">🏃 ${e}</span>`);
+  (extracted.food||[]).forEach(f => html += `<span class="tag tag-food">🍽️ ${f}</span>`);
+  (extracted.medication||[]).forEach(m => html += `<span class="tag tag-med">💊 ${m}</span>`);
+  (extracted.menstrual||[]).forEach(m => html += `<span class="tag tag-menstrual">🩸 ${m}</span>`);
+  (extracted.bowel||[]).forEach(b => html += `<span class="tag tag-bowel">🚽 ${b}</span>`);
+  (extracted.emotions||[]).forEach(e => html += `<span class="tag tag-emo">💭 ${e}</span>`);
+  return html;
+}
+
+function renderCategoryTags(cats) {
+  let html = '';
+  (cats.symptoms||[]).forEach(s  => html += `<span class="tag tag-sym">${s}</span>`);
+  (cats.sleep||[]).forEach(s     => html += `<span class="tag tag-sleep">😴 ${s}</span>`);
+  (cats.exercise||[]).forEach(s  => html += `<span class="tag tag-exercise">🏃 ${s}</span>`);
+  (cats.food||[]).forEach(s      => html += `<span class="tag tag-food">🍽️ ${s}</span>`);
+  (cats.medication||[]).forEach(s=> html += `<span class="tag tag-med">💊 ${s}</span>`);
+  (cats.menstrual||[]).forEach(s => html += `<span class="tag tag-menstrual">🩸 ${s}</span>`);
+  (cats.bowel||[]).forEach(s     => html += `<span class="tag tag-bowel">🚽 ${s}</span>`);
+  return html;
+}
+
+function renderEntryCard(e, showDelete=true) {
+  const cats = e.categories || {};
+  const tagsHtml = renderCategoryTags(cats);
+  const weatherStr = e.weather?.temp
+    ? `${e.weather.condition} · ${e.weather.temp}° · 濕度${e.weather.humidity}%`
+    : '';
+  return `
+    <div class="entry-card" id="ec-${e.id}" style="position:relative;padding-right:72px">
+      ${showDelete ? `
+        <div class="card-btns">
+          <button class="edit-btn" onclick="editEntry('${e.id}')" title="編輯">✏️</button>
+          <button class="del-btn" onclick="confirmDelete('${e.id}')" title="刪除">×</button>
+        </div>` : ''}
+      <div class="entry-tags">${tagsHtml || '<span style="color:#9CA3AF;font-size:12px">無標籤</span>'}</div>
+      ${cats.notes ? `<div class="entry-text-raw">${cats.notes}</div>` : ''}
+      <div class="entry-time">🕐 ${e.time}</div>
+      ${weatherStr ? `<div class="entry-weather">🌤️ ${weatherStr}</div>` : ''}
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// RECORD PAGE
+// ════════════════════════════════════════════════════════════════
+function renderRecordPage() {
+  const sel = getSelectedRecordDate();
+  const today = todayStr();
+  const entries = getEntries().filter(e => e.date === sel);
+  const d = new Date(sel + 'T00:00:00');
+  document.getElementById('hdr-date').textContent = `${d.getFullYear()}年`;
+  document.getElementById('hdr-day').textContent = `${d.getMonth()+1}月${d.getDate()}日`;
+  document.getElementById('hdr-count').textContent = `${entries.length} 條記錄`;
+  // Update today badge
+  const badge = document.getElementById('today-badge');
+  if (badge) badge.textContent = sel === today ? '今天' : '補記';
+
+  const list = document.getElementById('entry-list');
+  if (!entries.length) {
+    // 找最近有記錄的日期（不含今天）
+    const allEntries = getEntries();
+    const recentDates = [...new Set(allEntries.map(e => e.date))]
+      .filter(d => d !== sel)
+      .sort((a,b) => b.localeCompare(a))
+      .slice(0, 5);
+    const recentHtml = recentDates.length ? `
+      <div style="margin-top:10px;font-size:13px;color:var(--sub)">最近有記錄的日期：</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+        ${recentDates.map(d => {
+          const dd = new Date(d+'T00:00:00');
+          const label = `${dd.getMonth()+1}/${dd.getDate()}`;
+          return `<button type="button" onclick="jumpToDate('${d}')"
+            style="padding:4px 12px;border-radius:12px;border:1.5px solid var(--blue);
+            color:var(--blue);background:#fff;font-size:13px;cursor:pointer">${label}</button>`;
+        }).join('')}
+      </div>` : '';
+    list.innerHTML = `<div class="empty">
+      <div class="empty-icon">📝</div>
+      <div class="empty-text">${sel === today ? '今天還沒有記錄' : '這天沒有記錄'}</div>
+      <div class="empty-hint">${sel === today ? '在下方輸入你的身體感受吧！' : ''}${recentHtml}</div>
+    </div>`;
+  } else {
+    list.innerHTML = entries.map(e => renderEntryCard(e)).join('');
+  }
+}
+
+function jumpToDate(dateStr) {
+  document.getElementById('record-date').value = dateStr;
+  onDateChange();
+}
+
+// ── 欄位工具 ──
+const CAT_IDS = ['inp-symptoms','inp-sleep','inp-exercise','inp-food','inp-medication','inp-menstrual','inp-bowel','inp-notes'];
+
+function parseField(str) {
+  if (!str || !str.trim()) return [];
+  return str.split(/[、,，\n]/).map(s => s.trim()).filter(Boolean);
+}
+
+function clearInput() {
+  CAT_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+}
+
+function saveEntry() {
+  console.log('[Debug] saveEntry called');
+  try {
+    const cats = {
+      symptoms:   parseField((document.getElementById('inp-symptoms')||{value:''}).value),
+      sleep:      parseField((document.getElementById('inp-sleep')||{value:''}).value),
+      exercise:   parseField((document.getElementById('inp-exercise')||{value:''}).value),
+      food:       parseField((document.getElementById('inp-food')||{value:''}).value),
+      medication: parseField((document.getElementById('inp-medication')||{value:''}).value),
+      menstrual:  parseField((document.getElementById('inp-menstrual')||{value:''}).value),
+      bowel:      parseField((document.getElementById('inp-bowel')||{value:''}).value),
+      notes:      (document.getElementById('inp-notes')||{value:''}).value.trim()
+    };
+    const hasContent = Object.values(cats).some(v => Array.isArray(v) ? v.length > 0 : v.length > 0);
+    if (!hasContent) { showToast('請至少填寫一個欄位'); return; }
+
+    const now = new Date();
+    if (editingId) {
+      // 編輯模式：更新原有記錄
+      const entries = getEntries();
+      const idx = entries.findIndex(e => e.id === editingId);
+      if (idx >= 0) {
+        entries[idx] = { ...entries[idx], categories: cats };
+        saveEntries(entries);
+      }
+      editingId = null;
+      document.getElementById('btn-record-text').textContent = '記錄';
+      document.getElementById('edit-mode-bar').style.display = 'none';
+      showToast('✅ 已更新！');
+    } else {
+      const entry = {
+        id: String(now.getTime()),
+        date: getSelectedRecordDate(),
+        time: fmtTime(now),
+        categories: cats,
+        weather: weatherCache || {}
+      };
+      addEntry(entry);
+      showToast('✅ 記錄成功！');
+    }
+    clearInput();
+    renderRecordPage();
+    updateSettingsStats();
+  } catch(err) {
+    showToast('❌ 錯誤：' + err.message);
+    console.error('saveEntry error:', err);
+  }
+}
+
+// ── 編輯記錄 ──
+let editingId = null;
+
+function editEntry(id) {
+  const entries = getEntries();
+  const e = entries.find(e => e.id === id);
+  if (!e) return;
+  const c = e.categories || {};
+  const join = arr => (arr||[]).join('、');
+  document.getElementById('inp-symptoms').value  = join(c.symptoms);
+  document.getElementById('inp-sleep').value     = join(c.sleep);
+  document.getElementById('inp-exercise').value  = join(c.exercise);
+  document.getElementById('inp-food').value      = join(c.food);
+  document.getElementById('inp-medication').value= join(c.medication);
+  document.getElementById('inp-menstrual').value = join(c.menstrual);
+  document.getElementById('inp-bowel').value     = join(c.bowel);
+  document.getElementById('inp-notes').value     = c.notes || '';
+  document.getElementById('record-date').value   = e.date;
+  editingId = id;
+  const btnText = document.getElementById('btn-record-text');
+  if (btnText) btnText.textContent = '更新';
+  document.getElementById('edit-mode-bar').style.display = 'flex';
+  // 滾動到表單
+  document.querySelector('.record-scroll').scrollTop = 9999;
+  showToast('✏️ 已載入，修改後按「更新」');
+}
+
+function cancelEdit() {
+  editingId = null;
+  clearInput();
+  const btnText = document.getElementById('btn-record-text');
+  if (btnText) btnText.textContent = '記錄';
+  document.getElementById('edit-mode-bar').style.display = 'none';
+}
+
+// ── 建議詞 ──
+function getRecentValues(categoryKey) {
+  const counts = {};
+  getEntries().forEach(e => {
+    ((e.categories || {})[categoryKey] || []).forEach(v => {
+      counts[v] = (counts[v] || 0) + 1;
+    });
+  });
+  return Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,10).map(([k]) => k);
+}
+
+function showSuggestions(categoryKey, inputId) {
+  const sugDiv = document.getElementById('sug-' + categoryKey);
+  if (!sugDiv) return;
+  const values = getRecentValues(categoryKey);
+  if (!values.length) { sugDiv.innerHTML = ''; return; }
+  sugDiv.innerHTML = values.map(v =>
+    `<button type="button" class="sug-chip" onclick="addSuggestion('${inputId}','${v.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">＋${v}</button>`
+  ).join('');
+  // 同時更新 datalist
+  const dl = document.getElementById('dl-' + categoryKey);
+  if (dl) dl.innerHTML = values.map(v => `<option value="${v}">`).join('');
+}
+
+function addSuggestion(inputId, value) {
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  const cur = inp.value.trim();
+  inp.value = cur ? cur + '、' + value : value;
+  inp.focus();
+}
+
+function confirmDelete(id) {
+  if (confirm('確定要刪除這條記錄嗎？')) {
+    deleteEntry(id);
+    renderRecordPage();
+    updateSettingsStats();
+    showToast('已刪除');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// STATS PAGE
+// ════════════════════════════════════════════════════════════════
+let statPeriod = 7;
+let trendChart = null;
+
+function setPeriod(days, btn) {
+  statPeriod = days;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderStatsPage();
+}
+
+function getFilteredEntries(days) {
+  const entries = getEntries();
+  if (!days) return entries;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutStr = cutoff.toISOString().slice(0,10);
+  return entries.filter(e => e.date >= cutStr);
+}
+
+function countBy(entries, field) {
+  const counts = {};
+  entries.forEach(e => {
+    const arr = (e.categories ? e.categories[field] : e.extracted?.[field]) || [];
+    arr.forEach(v => { counts[v] = (counts[v]||0) + 1; });
+  });
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+}
+
+function renderBarList(data, max, color='#4776E6') {
+  if (!data.length) return '<div style="color:#9CA3AF;font-size:13px;padding:8px 0">暫無資料</div>';
+  return data.slice(0,8).map(([label, count]) => `
+    <div class="stat-row">
+      <div class="stat-label">${label}</div>
+      <div class="stat-bar-wrap">
+        <div class="stat-bar" style="width:${(count/max*100).toFixed(0)}%;background:${color}"></div>
+      </div>
+      <div class="stat-count">${count} 次</div>
+    </div>`).join('');
+}
+
+function renderStatsPage() {
+  const entries = getFilteredEntries(statPeriod);
+  const label = statPeriod ? `最近 ${statPeriod} 天` : '全部時間';
+
+  if (!entries.length) {
+    document.getElementById('stats-content').innerHTML =
+      `<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">暫無記錄資料</div></div>`;
+    return;
+  }
+
+  const symptoms = countBy(entries, 'symptoms');
+  const triggers = countBy(entries, 'triggers');
+  const bodyParts = countBy(entries, 'bodyParts');
+  const food = countBy(entries, 'food');
+  const sleepStats  = countBy(entries, 'sleep');
+  const exStats     = countBy(entries, 'exercise');
+  const medStats    = countBy(entries, 'medication');
+  const menStats    = countBy(entries, 'menstrual');
+  const bowelStats  = countBy(entries, 'bowel');
+
+  // Monthly trend data (last 14 days)
+  const trendDays = 14;
+  const trendLabels = [], trendData = [];
+  for (let i = trendDays-1; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    trendLabels.push(`${d.getMonth()+1}/${d.getDate()}`);
+    trendData.push(getEntries().filter(e => e.date === ds).length);
+  }
+
+  const maxSym   = symptoms[0]?.[1] || 1;
+  const maxTrig  = triggers[0]?.[1] || 1;
+  const maxPart  = bodyParts[0]?.[1] || 1;
+  const maxSleep = sleepStats[0]?.[1] || 1;
+  const maxEx    = exStats[0]?.[1] || 1;
+  const maxMed   = medStats[0]?.[1] || 1;
+  const maxMen   = menStats[0]?.[1] || 1;
+  const maxBowel = bowelStats[0]?.[1] || 1;
+
+  document.getElementById('stats-content').innerHTML = `
+    <div class="card">
+      <div class="card-title">📊 ${label}總覽</div>
+      <div class="stat-row">
+        <div class="stat-label">總記錄筆數</div>
+        <div style="font-size:20px;font-weight:700;color:#4776E6">${entries.length}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🩺 常見症狀</div>
+      ${renderBarList(symptoms, maxSym, '#8E54E9')}
+    </div>
+
+    <div class="card">
+      <div class="card-title">📍 常見部位</div>
+      ${renderBarList(bodyParts, maxPart, '#2563EB')}
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚠️ 常見誘因</div>
+      ${renderBarList(triggers, maxTrig, '#D97706')}
+    </div>
+
+    <div class="card">
+      <div class="card-title">😴 睡眠狀況</div>
+      ${renderBarList(sleepStats, maxSleep, '#0284C7')}
+    </div>
+
+    <div class="card">
+      <div class="card-title">🏃 運動記錄</div>
+      ${renderBarList(exStats, maxEx, '#15803D')}
+    </div>
+
+    <div class="card">
+      <div class="card-title">🍽️ 飲食記錄</div>
+      ${renderBarList(food, food[0]?.[1]||1, '#EA580C')}
+    </div>
+
+    <div class="card">
+      <div class="card-title">💊 藥物／保健品</div>
+      ${renderBarList(medStats, maxMed, '#7E22CE')}
+    </div>
+
+    <div class="card">
+      <div class="card-title">🩸 經期記錄</div>
+      ${renderBarList(menStats, maxMen, '#BE123C')}
+    </div>
+
+    <div class="card">
+      <div class="card-title">🚽 排便記錄</div>
+      ${renderBarList(bowelStats, maxBowel, '#A16207')}
+    </div>
+
+    <div class="card">
+      <div class="card-title">📅 14天記錄趨勢</div>
+      <div class="chart-wrap"><canvas id="trend-chart"></canvas></div>
+    </div>
+  `;
+
+  // Trend line chart
+  if (trendChart) { trendChart.destroy(); trendChart = null; }
+  const trendCtx = document.getElementById('trend-chart').getContext('2d');
+  trendChart = new Chart(trendCtx, {
+    type:'line',
+    data:{
+      labels: trendLabels,
+      datasets:[{
+        label:'記錄筆數',
+        data: trendData,
+        borderColor:'#4776E6',
+        backgroundColor:'rgba(71,118,230,.1)',
+        fill:true, tension:.4, pointRadius:4,
+        pointBackgroundColor:'#4776E6'
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      scales:{
+        y:{beginAtZero:true, ticks:{stepSize:1, font:{size:11}}},
+        x:{ticks:{font:{size:11}}}
+      },
+      plugins:{legend:{display:false}}
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// TREND PAGE (Calendar)
+// ════════════════════════════════════════════════════════════════
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let selectedDay = todayStr();
+
+function changeMonth(dir) {
+  calMonth += dir;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const entries = getEntries();
+  const entryDates = new Set(entries.map(e => e.date));
+  const today = todayStr();
+  const dows = ['日','一','二','三','四','五','六'];
+  document.getElementById('cal-month-label').textContent = `${calYear}年${calMonth+1}月`;
+
+  let html = dows.map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  for (let i = 0; i < firstDay; i++) html += '<div></div>';
+
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = ds === today;
+    const hasDot = entryDates.has(ds);
+    const isSel = ds === selectedDay;
+    html += `<div class="cal-day${isToday?' today':''}${hasDot?' has-entry':''}${isSel?' selected':''}"
+      onclick="selectDay('${ds}')">
+      <span>${d}</span>
+      ${hasDot ? '<div class="dot"></div>' : ''}
+    </div>`;
+  }
+  document.getElementById('cal-grid').innerHTML = html;
+  renderCalEntries();
+}
+
+function selectDay(ds) {
+  selectedDay = ds;
+  renderCalendar();
+}
+
+function mergeDayTags(entries) {
+  const sets = {
+    symptoms: new Set(), sleep: new Set(), exercise: new Set(),
+    food: new Set(), medication: new Set(), menstrual: new Set(), bowel: new Set()
+  };
+  entries.forEach(e => {
+    const c = e.categories || {};
+    (c.symptoms||[]).forEach(v => sets.symptoms.add(v));
+    (c.sleep||[]).forEach(v    => sets.sleep.add(v));
+    (c.exercise||[]).forEach(v => sets.exercise.add(v));
+    (c.food||[]).forEach(v     => sets.food.add(v));
+    (c.medication||[]).forEach(v => sets.medication.add(v));
+    (c.menstrual||[]).forEach(v  => sets.menstrual.add(v));
+    (c.bowel||[]).forEach(v      => sets.bowel.add(v));
+  });
+  let html = '<div class="entry-tags" style="padding:4px 0">';
+  sets.symptoms.forEach(s  => html += `<span class="tag tag-sym">${s}</span>`);
+  sets.sleep.forEach(s     => html += `<span class="tag tag-sleep">😴 ${s}</span>`);
+  sets.exercise.forEach(s  => html += `<span class="tag tag-exercise">🏃 ${s}</span>`);
+  sets.food.forEach(s      => html += `<span class="tag tag-food">🍽️ ${s}</span>`);
+  sets.medication.forEach(s=> html += `<span class="tag tag-med">💊 ${s}</span>`);
+  sets.menstrual.forEach(s => html += `<span class="tag tag-menstrual">🩸 ${s}</span>`);
+  sets.bowel.forEach(s     => html += `<span class="tag tag-bowel">🚽 ${s}</span>`);
+  html += '</div>';
+  const hasAny = Object.values(sets).some(s => s.size > 0);
+  return hasAny ? html : '<div style="font-size:13px;color:#9CA3AF;padding:8px 0">無記錄</div>';
+}
+
+function renderCalEntries() {
+  const entries = getEntries().filter(e => e.date === selectedDay);
+  const container = document.getElementById('cal-entries');
+  if (!entries.length) {
+    container.innerHTML = `<div class="empty" style="padding:24px 0">
+      <div class="empty-text">這天沒有記錄</div></div>`;
+    return;
+  }
+  const d = new Date(selectedDay + 'T00:00:00');
+  const days = ['日','一','二','三','四','五','六'];
+  container.innerHTML =
+    `<div class="cal-entry-date">${d.getMonth()+1}月${d.getDate()}日（週${days[d.getDay()]}）</div>` +
+    `<div class="entry-card">${mergeDayTags(entries)}</div>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// ASSISTANT PAGE
+// ════════════════════════════════════════════════════════════════
+function renderAssistantPage() {
+  const all = getEntries();
+  const recent30 = getFilteredEntries(30);
+
+  if (all.length < 1) {
+    document.getElementById('assist-content').innerHTML = `
+      <div class="empty" style="padding:60px 32px">
+        <div class="empty-icon">📋</div>
+        <div class="empty-text">還沒有記錄</div>
+        <div class="empty-hint">開始記錄後，這裡會顯示統計摘要</div>
+      </div>`;
+    return;
+  }
+
+  const symptoms   = countBy(recent30, 'symptoms');
+  const sleepStats = countBy(recent30, 'sleep');
+  const exStats    = countBy(recent30, 'exercise');
+  const foodStats  = countBy(recent30, 'food');
+  const medStats   = countBy(recent30, 'medication');
+  const menStats   = countBy(recent30, 'menstrual');
+  const bowelStats = countBy(recent30, 'bowel');
+
+  const fmt = arr => arr.length
+    ? arr.slice(0,5).map(([k,v]) => `<b>${k}</b>（${v}次）`).join('、')
+    : '<span style="color:#9CA3AF">無記錄</span>';
+
+  document.getElementById('assist-content').innerHTML = `
+    <div class="insight-card insight-red">
+      <div class="insight-head">🩺 症狀（近30天）</div>
+      <div class="insight-body">${fmt(symptoms)}</div>
+    </div>
+    <div class="insight-card insight-blue">
+      <div class="insight-head">😴 睡眠（近30天）</div>
+      <div class="insight-body">${fmt(sleepStats)}</div>
+    </div>
+    <div class="insight-card insight-green">
+      <div class="insight-head">🏃 運動（近30天）</div>
+      <div class="insight-body">${fmt(exStats)}</div>
+    </div>
+    <div class="insight-card insight-orange">
+      <div class="insight-head">🍽️ 飲食（近30天）</div>
+      <div class="insight-body">${fmt(foodStats)}</div>
+    </div>
+    <div class="insight-card insight-blue">
+      <div class="insight-head">💊 藥物／保健品（近30天）</div>
+      <div class="insight-body">${fmt(medStats)}</div>
+    </div>
+    <div class="insight-card insight-red">
+      <div class="insight-head">🩸 月經（近30天）</div>
+      <div class="insight-body">${fmt(menStats)}</div>
+    </div>
+    <div class="insight-card insight-orange">
+      <div class="insight-head">🚽 排便（近30天）</div>
+      <div class="insight-body">${fmt(bowelStats)}</div>
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+// SETTINGS PAGE
+// ════════════════════════════════════════════════════════════════
+function updateSettingsStats() {
+  const entries = getEntries();
+  document.getElementById('total-count').textContent = entries.length;
+  if (entries.length) {
+    const oldest = [...entries].sort((a,b)=>a.id-b.id)[0];
+    const d = new Date(parseInt(oldest.id));
+    document.getElementById('start-date').textContent =
+      `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+}
+
+function exportTXT() {
+  const text = buildExportText();
+  const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `身體日記_AI分析_${todayStr()}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('📤 純文字已下載');
+}
+
+function exportJSON() {
+  const entries = getEntries();
+  if (!entries.length) { showToast('沒有資料可以備份'); return; }
+  const blob = new Blob([JSON.stringify(entries, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `身體日記備份_${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('💾 備份已下載');
+}
+
+function importJSON() {
+  document.getElementById('import-file').click();
+}
+
+function handleImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!Array.isArray(data)) throw new Error();
+      if (confirm(`確定要載入 ${data.length} 筆備份資料？（會覆蓋現有資料）`)) {
+        saveEntries(data);
+        renderRecordPage();
+        updateSettingsStats();
+        showToast(`✅ 已載入 ${data.length} 筆資料`);
+      }
+    } catch { showToast('❌ 檔案格式錯誤'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function clearAllData() {
+  if (confirm('確定要刪除所有記錄嗎？此動作無法復原！')) {
+    localStorage.removeItem(STORE_KEY);
+    renderRecordPage();
+    updateSettingsStats();
+    showToast('已清除所有資料');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════════════════════
+const pageMap = {
+  record: 'page-record',
+  stats: 'page-stats',
+  trend: 'page-trend',
+  assist: 'page-assist',
+  settings: 'page-settings'
+};
+
+function switchTab(name, tabEl) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(pageMap[name]).classList.add('active');
+  tabEl.classList.add('active');
+
+  // Update header for non-record pages
+  const hdr = document.getElementById('hdr');
+  if (name === 'record') {
+    hdr.style.display = '';
+    renderRecordPage();
+  } else {
+    hdr.style.display = 'none';
+    if (name === 'stats') renderStatsPage();
+    if (name === 'trend') renderCalendar();
+    if (name === 'assist') renderAssistantPage();
+    if (name === 'settings') updateSettingsStats();
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ════════════════════════════════════════════════════════════════
+// EXPORT FOR AI
+// ════════════════════════════════════════════════════════════════
+let exportDays = 7;
+
+function setExportPeriod(days, btn) {
+  exportDays = days;
+  document.querySelectorAll('.export-period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function countByField(entries, field) {
+  const counts = {};
+  entries.forEach(e => {
+    const arr = (e.categories ? e.categories[field] : e.extracted?.[field]) || [];
+    arr.forEach(v => { counts[v] = (counts[v]||0) + 1; });
+  });
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+}
+
+function buildExportText() {
+  const all = getEntries();
+  let entries = all;
+  if (exportDays > 0) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - exportDays);
+    const cutStr = cutoff.toISOString().slice(0,10);
+    entries = all.filter(e => e.date >= cutStr);
+  }
+
+  if (!entries.length) return '沒有資料可以匯出。';
+
+  const periodLabel = exportDays ? `最近 ${exportDays} 天` : '全部時間';
+  const days = ['日','一','二','三','四','五','六'];
+
+  // 統計摘要
+  const symptoms   = countByField(entries, 'symptoms');
+  const sleepTags  = countByField(entries, 'sleep');
+  const exTags     = countByField(entries, 'exercise');
+  const medTags    = countByField(entries, 'medication');
+  const menTags    = countByField(entries, 'menstrual');
+  const bowelTags  = countByField(entries, 'bowel');
+  const foodTags   = countByField(entries, 'food');
+
+  const fmt = arr => arr.length ? arr.map(([k,v])=>`${k}(${v}次)`).join('、') : '無';
+
+  let text = `以下是我的健康日記（${periodLabel}，共 ${entries.length} 筆記錄），請幫我分析健康規律並給出改善建議：\n\n`;
+
+  text += `【統計摘要】\n`;
+  text += `・症狀：${fmt(symptoms)}\n`;
+  text += `・睡眠：${fmt(sleepTags)}\n`;
+  text += `・運動：${fmt(exTags)}\n`;
+  text += `・飲食：${fmt(foodTags)}\n`;
+  text += `・藥物/保健品：${fmt(medTags)}\n`;
+  text += `・排便：${fmt(bowelTags)}\n`;
+  text += `・經期：${fmt(menTags)}\n\n`;
+
+  text += `【完整記錄】\n`;
+  // 按日期由舊到新排列
+  const sorted = [...entries].sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+  let lastDate = '';
+  sorted.forEach(e => {
+    if (e.date !== lastDate) {
+      const d = new Date(e.date + 'T00:00:00');
+      text += `\n📅 ${e.date}（週${days[d.getDay()]}）\n`;
+      lastDate = e.date;
+    }
+    const c = e.categories || {};
+    const parts = [
+      ...(c.symptoms||[]).map(s=>`症狀:${s}`),
+      ...(c.sleep||[]).map(s=>`睡眠:${s}`),
+      ...(c.exercise||[]).map(s=>`運動:${s}`),
+      ...(c.food||[]).map(s=>`飲食:${s}`),
+      ...(c.medication||[]).map(s=>`藥物:${s}`),
+      ...(c.menstrual||[]).map(s=>`月經:${s}`),
+      ...(c.bowel||[]).map(s=>`排便:${s}`),
+      c.notes ? `備註:${c.notes}` : '',
+      e.weather?.temp ? `天氣:${e.weather.condition} ${e.weather.temp}°` : '',
+    ].filter(Boolean);
+    if (parts.length) text += `  ▸ ${parts.join(' / ')}\n`;
+  });
+
+  text += `\n【請幫我分析】\n`;
+  text += `1. 最常出現的症狀與身體部位，以及嚴重程度趨勢\n`;
+  text += `2. 哪些誘因最常與哪些症狀一起出現（可能的關聯）\n`;
+  text += `3. 睡眠、運動、飲食對我的健康狀況有何影響\n`;
+  text += `4. 是否有時間規律（特定時段、星期、週期）\n`;
+  text += `5. 給我 3~5 條具體可執行的改善建議\n`;
+
+  return text;
+}
+
+function showExportModal() {
+  const entries = getEntries();
+  if (!entries.length) { showToast('還沒有任何記錄'); return; }
+  document.getElementById('export-text').value = buildExportText();
+  document.getElementById('export-modal').classList.add('open');
+}
+
+function closeExportModal(e) {
+  if (!e || e.target === document.getElementById('export-modal')) {
+    document.getElementById('export-modal').classList.remove('open');
+  }
+}
+
+function copyExportText() {
+  const ta = document.getElementById('export-text');
+  ta.select();
+  ta.setSelectionRange(0, 99999);
+  try {
+    navigator.clipboard.writeText(ta.value).then(() => {
+      showToast('✅ 已複製！可以貼到 ChatGPT 了');
+    }).catch(() => {
+      document.execCommand('copy');
+      showToast('✅ 已複製！');
+    });
+  } catch {
+    document.execCommand('copy');
+    showToast('✅ 已複製！');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════
+// Init date picker to today
+document.getElementById('record-date').value = todayStr();
+// Set max date to today (can't record future)
+document.getElementById('record-date').max = todayStr();
+
+renderRecordPage();
+updateSettingsStats();
+fetchWeather();
+</script>
+</body>
+</html>
